@@ -29,15 +29,15 @@ namespace Agalag
 
         List<int> bulletXValues = new List<int>(new int[] {});//list for bullet Xes
         List<int> bulletYValues = new List<int>(new int[] {});//list for bullet Ys
-        List<bool> bulletOkValues = new List<bool>(new bool[] { });//list for bullet "ok" values
+        
 
         List<int> enemyXValues = new List<int>(new int[] { });//list for enemy Xes
         List<int> enemyYValues = new List<int>(new int[] { });//list for enemy Ys
-        List<bool> enemyOkValues = new List<bool>(new bool[] { });//list for enemy "ok" values
+        
 
         List<int> enemyBulletXValues = new List<int>(new int[] { });//list for bullet Xes
         List<int> enemyBulletYValues = new List<int>(new int[] { });//list for bullet Ys
-        List<bool> enemyBulletOkValues = new List<bool>(new bool[] { });//list for bullet "ok" values
+        
 
 
         Boolean leftArrowDown, downArrowDown, rightArrowDown, upArrowDown, spaceDown;//track whether keys are held down
@@ -162,15 +162,15 @@ namespace Agalag
             {
                 shipY-= 6;
             }
-            if (spaceDown == true && bulletModulator == 10 )//fires shots
+            if (spaceDown == true && bulletModulator == 10 && playerOk )//fires shots only if bulletModulator has reched 10(100 ms have passed)
             {
                 bulletXValues.Add(shipX + 24);
                 bulletYValues.Add(shipY);
-                bulletOkValues.Add(true);
+
                 bulletModulator = 0;
             }
             
-            if (bulletModulator < 10) { bulletModulator++; }
+            if (bulletModulator < 10) { bulletModulator++; }//cases bulletmodulator to incement if a shot is not ready. This will cause a shot to be fired every 100 ms
 
             for  (int i = 0; i < bulletXValues.Count(); i++)
             {
@@ -179,7 +179,7 @@ namespace Agalag
                 {
                     bulletXValues.Remove(bulletXValues[i]);
                     bulletYValues.Remove(bulletYValues[i]);
-                    bulletOkValues.Remove(bulletOkValues[i]);
+
                 }
                 else
                 {
@@ -192,42 +192,74 @@ namespace Agalag
                 {
                     enemyXValues.Remove(enemyXValues[i]);
                     enemyYValues.Remove(enemyYValues[i]);
-                    enemyOkValues.Remove(enemyOkValues[i]);
                 }
                 else {
                     enemyYValues[i] += 2;//causes enemies to descend
                 }
             }
+            for (int i = 0; i < enemyBulletXValues.Count(); i++)
+            {
+                if (enemyBulletYValues[i] < 0)
+                {
+                    enemyBulletXValues.Remove(enemyBulletXValues[i]);
+                    enemyBulletYValues.Remove(enemyBulletYValues[i]);
+
+                }
+                else
+                {
+                    enemyBulletYValues[i] += 7;//causes enemy bullets to descend
+                }
+            }
 
 
             if (tracker % 200 == 0) {
-                //spawn rate increases every 10 s
+                //enemy spawn rate increases every 200 frames
                 double screenDiv = this.Width / enemySpawnRate;//used to evenly distribute enemies across screen
                 for (int i = 0; i < enemySpawnRate; i += 1)
                 {                   
                     enemyXValues.Add(i * Convert.ToInt16(screenDiv)+ Convert.ToInt16(screenDiv)/2 - 30);
                     enemyYValues.Add(0 + (rand.Next(-50, 51)));
-                    enemyOkValues.Add(true);
                 }
                 enemySpawnRate += 1;
             }
 
-            //collisions detection
-            for (int i = 0; i < bulletXValues.Count; i++)//nested for loops to check all bullets against all enemies
+            if (tracker % 50 == 0)//enemies fire every 50 frames
             {
-                for (int j = 0; j < enemyXValues.Count(); j++)
+                for (int i = 0; i < enemyXValues.Count(); i++)
                 {
-                    if (Math.Sqrt(Math.Pow(bulletXValues[i] - enemyXValues[j], 2) + Math.Pow(bulletYValues[i] - enemyYValues[j], 2)) < 30)
-                    {
-                        bulletXValues.Remove(bulletXValues[i]);
-                        bulletYValues.Remove(bulletYValues[i]);
-
-                        enemyXValues.Remove(enemyXValues[j]);
-                        enemyYValues.Remove(enemyYValues[j]);
-                    }
+                    enemyBulletXValues.Add(enemyXValues[i] + 15);
+                    enemyBulletYValues.Add(enemyYValues[i] + 55);
                 }
             }
 
+            //collisions detection for bullets and enemies
+            for (int i = 0; i < bulletXValues.Count; i++)//nested for loops to check all bullets against all enemies
+            {
+                for (int j = 0; j < enemyXValues.Count(); j++)
+                {   
+                    //*******IMPORTANT******** TEMPORARY TRY/CATCH TO STOP CRASHING! MUST FIX!*************************
+                    try
+                    { 
+                        if (Math.Sqrt(Math.Pow(bulletXValues[i] - enemyXValues[j], 2) + Math.Pow(bulletYValues[i] - enemyYValues[j], 2)) < 30)//uses distance formula
+                        {
+                            bulletXValues.Remove(bulletXValues[i]);
+                            bulletYValues.Remove(bulletYValues[i]);//removes collided bullets
+
+                            enemyXValues.Remove(enemyXValues[j]);
+                            enemyYValues.Remove(enemyYValues[j]);
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            for (int i = 0; i < enemyBulletXValues.Count(); i++)
+            {
+                if (Math.Abs(enemyBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs (enemyBulletYValues[i] - (shipY + 20)) < 20)
+                {
+                    playerOk = false; //kills player on hit
+                }
+            }
             tracker++;
             Refresh();          
         }
@@ -235,19 +267,26 @@ namespace Agalag
         //paint method
         private void Form1_Paint(object sender, PaintEventArgs e)
         {
-            drawShip(shipX, shipY);
+            if (playerOk)
+            {
+                drawShip(shipX, shipY);//draws ship
+            }
+
             drawBrush.Color = Color.Orange;
+
             for (int i = 0; i < bulletXValues.Count(); i++)
             {
-                g.FillRectangle(drawBrush, bulletXValues[i], bulletYValues[i], 3, 10);
+                g.FillRectangle(drawBrush, bulletXValues[i], bulletYValues[i], 3, 10);//draws player shots
             }
             for (int i = 0; i < enemyXValues.Count(); i++)
-            {   if (enemyOkValues[i] == true)//only draws enemy if it hasn't been destroyed
-                {
-                    drawEnemy(enemyXValues[i], enemyYValues[i]);
-                }
+            {   
+               drawEnemy(enemyXValues[i], enemyYValues[i]);//draws enemies               
             }
-            
+            drawBrush.Color = Color.Red;
+            for (int i = 0; i < enemyBulletXValues.Count(); i++)
+            {
+                g.FillRectangle(drawBrush, enemyBulletXValues[i], enemyBulletYValues[i], 3, 10);//draws player shots
+            }
         }
     }
 }
