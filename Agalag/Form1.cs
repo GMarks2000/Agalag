@@ -12,7 +12,7 @@ namespace Agalag
 {
     public partial class Form1 : Form
     {
-        Graphics g;
+       
         SolidBrush drawBrush = new SolidBrush(Color.White);
 
         int shipX;//player x value
@@ -45,7 +45,6 @@ namespace Agalag
         public Form1()
         {
             InitializeComponent();
-            g = this.CreateGraphics();
             gameTimer.Enabled = true;
             gameTimer.Start();
 
@@ -57,18 +56,18 @@ namespace Agalag
             //check to see if a key is pressed and set is KeyDown value to true if it has
             switch (e.KeyCode)
             {
-                case Keys.Left:
-                    leftArrowDown = true;
-                    break;
-                case Keys.Down:
-                    downArrowDown = true;
-                    break;
-                case Keys.Right:
-                    rightArrowDown = true;
-                    break;
-                case Keys.Up:
+                case Keys.W:
                     upArrowDown = true;
                     break;
+                case Keys.A:
+                    leftArrowDown = true;
+                    break;
+                case Keys.S:
+                    downArrowDown = true;
+                    break;
+                case Keys.D:
+                    rightArrowDown = true;
+                    break;               
                 case Keys.Space:
                     spaceDown = true;
                     break;
@@ -82,16 +81,16 @@ namespace Agalag
             //check to see if a key has been released and set its KeyDown value to false if it has
             switch (e.KeyCode)
             {
-                case Keys.Left:
+                case Keys.A:
                     leftArrowDown = false;
                     break;
-                case Keys.Down:
+                case Keys.S:
                     downArrowDown = false;
                     break;
-                case Keys.Right:
+                case Keys.D:
                     rightArrowDown = false;
                     break;
-                case Keys.Up:
+                case Keys.W:
                     upArrowDown = false;
                     break;
                 case Keys.Space:
@@ -105,40 +104,12 @@ namespace Agalag
         //function to draw the player ship
         void drawShip(int x, int y)
         {
-            Point[] triangle1Points = { new Point(x, y + 35), new Point(x + 5, y + 10), new Point(x + 10, y + 35) };//array for the points of triangle 1
-            Point[] triangle2Points = { new Point(x + 20, y + 15), new Point(x + 25, y), new Point(x + 30, y + 15) };//array for the points of triangle 2
-            Point[] triangle3Points = { new Point(x + 40, y + 35), new Point(x + 45, y + 10), new Point(x + 50, y + 35) };//array for the points of triangle 3
-
-            drawBrush.Color = Color.White;
-
-            g.FillRectangle(drawBrush, x, y + 35, 50, 10);//draws ship base
-            g.FillRectangle(drawBrush, x + 20, y + 15, 10, 20);//draws ship spine
-
-            drawBrush.Color = Color.DarkRed;
-
-            g.FillPolygon(drawBrush, triangle1Points);//draws left triangle
-            g.FillPolygon(drawBrush, triangle2Points);//draws central triangle
-            g.FillPolygon(drawBrush, triangle3Points);//draws right triangle
-
-            g.FillRectangle(drawBrush, x+10, y + 38, 30, 4);//draws ship base detail
-            g.FillRectangle(drawBrush, x + 23, y + 20, 4, 20);//draws ship spine detail
+           
         }
 
         void drawEnemy (int x, int y)
         {
-            Point[] shipBodyPoints = { new Point(x, y + 15), new Point(x + 15, y + 55), new Point(x + 30, y + 15) };//array for the points of the ship's body
-
-            drawBrush.Color = Color.Gray;
-
-            g.FillRectangle(drawBrush, x, y, 10, 15);//draws left thruster
-            g.FillRectangle(drawBrush, x + 20, y, 10, 15);//draws right thruster
-
-            drawBrush.Color = Color.Gold;
-
-            g.FillPolygon(drawBrush, shipBodyPoints);//draws ship's body
-            drawBrush.Color = Color.DarkBlue;
-
-            g.FillEllipse(drawBrush, x + 10, y + 20, 10, 15);
+           
         }
 
         //timer tick method
@@ -146,29 +117,32 @@ namespace Agalag
         {
             //checks to see if any keys have been pressed and adjusts the X or Y value
             //for the rectangle appropriately
-            if (leftArrowDown == true && shipX > 5)
-            {
-                shipX-= 6;
-            }
-            if (downArrowDown == true && shipY <this.Height - 88)
-            {
-               shipY+= 6;
-            }
-            if (rightArrowDown == true && shipX < this.Width - 70)
-            {
-                shipX+= 6;
-            }
-            if (upArrowDown == true && shipY > 5)
-            {
-                shipY-= 6;
-            }
-            if (spaceDown == true && bulletModulator == 10 && playerOk )//fires shots only if bulletModulator has reched 10(100 ms have passed)
+            if (spaceDown == true && bulletModulator == 10 && playerOk)//fires shots only if bulletModulator has reched 10(100 ms have passed)
             {
                 bulletXValues.Add(shipX + 24);
                 bulletYValues.Add(shipY);
 
                 bulletModulator = 0;
             }
+
+            if (leftArrowDown == true && shipX > 5)
+            {
+                shipX-= 6;
+            }
+            if (rightArrowDown == true && shipX < this.Width - 70)
+            {
+                shipX += 6;
+            }
+            if (downArrowDown == true && shipY <this.Height - 88)
+            {
+               shipY+= 6;
+            }
+
+            if (upArrowDown == true && shipY > 5)
+            {
+                shipY-= 6;
+            }
+           
             
             if (bulletModulator < 10) { bulletModulator++; }//cases bulletmodulator to incement if a shot is not ready. This will cause a shot to be fired every 100 ms
 
@@ -267,25 +241,55 @@ namespace Agalag
         //paint method
         private void Form1_Paint(object sender, PaintEventArgs e)
         {
+
+            e.Graphics.DrawString("up arrow: " + upArrowDown, new Font("Courier New", 12), drawBrush, 10, 10);
             if (playerOk)
             {
-                drawShip(shipX, shipY);//draws ship
+                Point[] triangle1Points = { new Point(shipX, shipY + 35), new Point(shipX + 5, shipY + 10), new Point(shipX + 10, shipY + 35) };//array for the points of triangle 1
+                Point[] triangle2Points = { new Point(shipX + 20, shipY + 15), new Point(shipX + 25, shipY), new Point(shipX + 30, shipY + 15) };//array for the points of triangle 2
+                Point[] triangle3Points = { new Point(shipX + 40, shipY + 35), new Point(shipX + 45, shipY + 10), new Point(shipX + 50, shipY + 35) };//array for the points of triangle 3
+
+                drawBrush.Color = Color.White;
+
+                e.Graphics.FillRectangle(drawBrush, shipX, shipY + 35, 50, 10);//draws ship base
+                e.Graphics.FillRectangle(drawBrush, shipX + 20, shipY + 15, 10, 20);//draws ship spine
+
+                drawBrush.Color = Color.DarkRed;
+
+                e.Graphics.FillPolygon(drawBrush, triangle1Points);//draws left triangle
+                e.Graphics.FillPolygon(drawBrush, triangle2Points);//draws central triangle
+                e.Graphics.FillPolygon(drawBrush, triangle3Points);//draws right triangle
+
+                e.Graphics.FillRectangle(drawBrush, shipX + 10, shipY + 38, 30, 4);//draws ship base detail
+                e.Graphics.FillRectangle(drawBrush, shipX + 23, shipY + 20, 4, 20);//draws ship spine detail
             }
 
             drawBrush.Color = Color.Orange;
 
             for (int i = 0; i < bulletXValues.Count(); i++)
             {
-                g.FillRectangle(drawBrush, bulletXValues[i], bulletYValues[i], 3, 10);//draws player shots
+                e.Graphics.FillRectangle(drawBrush, bulletXValues[i], bulletYValues[i], 3, 10);//draws player shots
             }
             for (int i = 0; i < enemyXValues.Count(); i++)
-            {   
-               drawEnemy(enemyXValues[i], enemyYValues[i]);//draws enemies               
+            {
+                Point[] shipBodyPoints = { new Point(enemyXValues[i], enemyYValues[i] + 15), new Point(enemyXValues[i] + 15, enemyYValues[i] + 55), new Point(enemyXValues[i] + 30, enemyYValues[i] + 15) };//array for the points of the ship's body
+
+                drawBrush.Color = Color.Gray;
+
+                e.Graphics.FillRectangle(drawBrush, enemyXValues[i], enemyYValues[i], 10, 15);//draws left thruster
+                e.Graphics.FillRectangle(drawBrush, enemyXValues[i] + 20, enemyYValues[i], 10, 15);//draws right thruster
+
+                drawBrush.Color = Color.Gold;
+
+                e.Graphics.FillPolygon(drawBrush, shipBodyPoints);//draws ship's body
+                drawBrush.Color = Color.DarkBlue;
+
+                e.Graphics.FillEllipse(drawBrush, enemyXValues[i] + 10, enemyYValues[i] + 20, 10, 15);
             }
             drawBrush.Color = Color.Red;
             for (int i = 0; i < enemyBulletXValues.Count(); i++)
             {
-                g.FillRectangle(drawBrush, enemyBulletXValues[i], enemyBulletYValues[i], 3, 10);//draws player shots
+                e.Graphics.FillRectangle(drawBrush, enemyBulletXValues[i], enemyBulletYValues[i], 3, 10);//draws player shots
             }
         }
     }
