@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Threading;
 
 namespace Agalag
 {
@@ -18,6 +19,12 @@ namespace Agalag
         int shipX;//player x value
         int shipY = 400;//player y value
         bool playerOk = true;//tracks whether player is alive
+
+        int playerHealth = 5;
+        int playerLives = 3;
+        int score = 0;
+
+        bool playerFiring = false; //used to determine whether to play firing animation
 
         string fireMode = "spread"; //will track the players mode of shooting
 
@@ -53,6 +60,9 @@ namespace Agalag
 
         List<int> enemyHeavyBulletXValues = new List<int>(new int[] { });//list for heavy type enemy bullet Xes
         List<int> enemyHeavyBulletYValues = new List<int>(new int[] { });//list for heavy type bullet Ys
+
+        List<int> powerupXValues = new List<int>(new int[] { });//list for powerup ys
+        List<int> powerupYValues = new List<int>(new int[] { });//list for powerup xes
 
         Boolean leftArrowDown, downArrowDown, rightArrowDown, upArrowDown, spaceDown;//track whether keys are held down
 
@@ -129,6 +139,7 @@ namespace Agalag
             //for the rectangle appropriately
             if (spaceDown == true && bulletModulator == 10 && playerOk)//fires shots only if bulletModulator has reached 10
             {
+                playerFiring = true;
                 switch (fireMode)//determines which type of bullet to add based on current firing mode. This is changed via randomly appearing powerups.
                 {
                     case "single": //fires a single shot. Start case.
@@ -168,6 +179,7 @@ namespace Agalag
                         break;
                 }
             }
+            else if (bulletModulator > 2) { playerFiring = false; }
 
             if (leftArrowDown == true && shipX > 5)
             {
@@ -186,8 +198,7 @@ namespace Agalag
             {
                 shipY-= 6;
             }
-           
-            
+                   
             if (bulletModulator < 10) { bulletModulator++; }//cases bullet modulator to incement if a shot is not ready. This will cause a shot to be fired every 100 ms
 
             for  (int i = 0; i < bulletXValues.Count(); i++)
@@ -195,9 +206,7 @@ namespace Agalag
                 //causes bullets to ascend
                 if (bulletYValues[i] < 0)
                 {
-                    bulletXValues.Remove(bulletXValues[i]);
-                    bulletYValues.Remove(bulletYValues[i]);
-                    bulletTypeValues.Remove(bulletTypeValues[i]);
+                    removeBullets(i);
                 }
                 else
                 {
@@ -221,8 +230,57 @@ namespace Agalag
                             break;
                     }                   
                 }
+                for (int j = 0; j < enemyXValues.Count(); j++)//detects collisions with enemies
+                {
+                     bool enemyHit = false;//tracks whether the enemy is hit to allow for the enemy switch to not impact the shot switch with less code.  
+                    try
+                    {
+                        if (enemyXValues.IndexOf(enemyXValues[j]) != -1 && bulletXValues.IndexOf(bulletXValues[i]) != -1)
+                        {
+                            switch (enemyTypeValues[j])//determines hitbox based on enemy type
+                            {                           
+                                case "light":
+                                    if (calculateDistance(bulletXValues[i], enemyXValues[j], bulletYValues[i], enemyYValues[j]) < 30)//uses distance formula to check for collision
+                                    {
+                                        enemyHit = true;
+                                    }
+                                    break;
+                                case "dynamic":
+                                    if (calculateDistance(bulletXValues[i], enemyXValues[j], bulletYValues[i], enemyYValues[j]) < 60)//uses distance formula to check for collision
+                                    {
+                                        enemyHit = true;
+                                    }
+                                    break;
+                                case "heavy":
+                                    if (calculateDistance(bulletXValues[i], enemyXValues[j],bulletYValues[i], enemyYValues[j]) < 80)//uses distance formula to check for collision
+                                    {
+                                        enemyHit = true;
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                    catch { }
+                    if (enemyHit)
+                    {                     
+                        switch (bulletTypeValues[i])//varies damage based on shot type
+                        {
+                            case "light":
+                                enemyHealths[j] -= 2;
+                                removeBullets(i);
+                                break;
+                            case "heavy":
+                                enemyHealths[j] -= 3;
+                                removeBullets(i);
+                                break;
+                            default: //covers spread shots
+                                enemyHealths[j] -= 1;
+                                removeBullets(i);
+                                break;
+                        }
+                    }
+                }
             }
-
             for (int i = 0; i < 199; i++)
             {
                 starYValues[i] += 0.3;
@@ -233,26 +291,33 @@ namespace Agalag
             {
                 if (enemyYValues[i] > this.Height)//removes offscreen enemies
                 {
-                    enemyXValues.Remove(enemyXValues[i]);
-                    enemyYValues.Remove(enemyYValues[i]);
-                    enemyTypeValues.Remove(enemyTypeValues[i]);
-                    enemyStartXes.Remove(enemyStartXes[i]);
+                    removeEnemies(i);
                 }
                 else {
+                    int scoreMod = 0;//tracks the amount to add to the score on an enemy kill
                     switch (enemyTypeValues[i]) 
                     {
                         case "light":
                             enemyYValues[i] += 2;//moves light enemies down
+                            scoreMod = 50;
                             break;
                         case "dynamic":
                             enemyYValues[i] += 3;//moves dynamic enemies down
                             enemyXValues[i] = enemyStartXes[i] + Convert.ToInt16( 100*Math.Sin(0.01 *enemyYValues[i]));//causes dynamic enemies to sway in a sinusoidal wave
+                            scoreMod = 100;
                             break;
                         case "heavy":
                             enemyYValues[i] += 1;//causes heavy enemies to slowly move down
+                            scoreMod = 150;
                             break;
                     }
+                    if (enemyHealths[i] <= 0)
+                    {
+                        removeEnemies(i);
+                        score += scoreMod;
+                    }
                 }
+               
             }
             for (int i = 0; i < enemyBulletXValues.Count(); i++)
             {
@@ -266,12 +331,12 @@ namespace Agalag
                     enemyBulletYValues[i] += 7;//causes enemy bullets to descend
                     if (Math.Abs(enemyBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyBulletYValues[i] - (shipY + 20)) < 20)
                     {
-                        playerOk = false; //kills player on hit
-                    }
-                }
-                
+                        playerHealth -= 1;
+                        enemyBulletXValues.Remove(enemyBulletXValues[i]);//removes bullets that hit the player.
+                        enemyBulletYValues.Remove(enemyBulletYValues[i]);
+                    }                 
+                }             
             }
-
             for (int i = 0; i < enemyDynamicBulletXValues.Count(); i++)//for loop for dynamic bullets. Seperate due to their differet behavior
             {
                 if (enemyDynamicBulletYValues[i] < 0)
@@ -292,10 +357,60 @@ namespace Agalag
                 {
                     if (Math.Abs(enemyDynamicBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyDynamicBulletYValues[i] - (shipY + 20)) < 20)
                     {
-                        playerOk = false; //kills player on hit
+                        playerHealth -= 2;
+                        enemyDynamicBulletXValues.Remove(enemyDynamicBulletXValues[i]);//removes offscreen enemy bullets
+                        enemyDynamicBulletYValues.Remove(enemyDynamicBulletYValues[i]);
+                        enemyDynamicBulletXIncreases.Remove(enemyDynamicBulletXIncreases[i]);
+                        enemyDynamicBulletYIncreases.Remove(enemyDynamicBulletYIncreases[i]);
                     }
                 }
                 catch { }
+            }
+
+            for (int i = 0; i < enemyHeavyBulletXValues.Count(); i++)
+            {   
+                //moves enemy heavy shots down
+                enemyHeavyBulletYValues[i] += 4;
+                //causes heavy shots to "home" towards player
+                if (enemyHeavyBulletXValues[i] > shipX) { enemyHeavyBulletXValues[i]--; }
+                else if (enemyHeavyBulletXValues[i] < shipX) { enemyHeavyBulletXValues[i]++; }
+                try
+                {
+                    if (Math.Abs(enemyHeavyBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyHeavyBulletYValues[i] - (shipY + 20)) < 20)
+                    {
+                        playerHealth -= 3;
+                        enemyHeavyBulletXValues.Remove(enemyHeavyBulletXValues[i]);
+                        enemyHeavyBulletYValues.Remove(enemyHeavyBulletYValues[i]);
+                    }
+                }
+                catch { }
+            }
+
+            if (playerHealth <= 0)//player respawn
+            {
+                gameTimer.Enabled = false;
+
+                for (int i = 0; i < 5; i++)//flashes player onscreen 5 times before restarting
+                {   if (playerLives != 0)
+                    {
+                        Refresh();
+                        Thread.Sleep(250);
+                        playerOk = false;
+                        Refresh();
+                        Thread.Sleep(250);
+                        playerOk = true;
+                    }
+                    
+                }
+                gameTimer.Enabled = true;
+                playerLives--;
+                playerHealth = 5;
+            }
+
+            if (playerLives == 0)//ends game on player death
+            { playerOk = false;
+                Refresh();
+                gameTimer.Enabled = false;
             }
 
             if (tracker % 200 == 0) {
@@ -308,11 +423,12 @@ namespace Agalag
                         int startX = (i * Convert.ToInt16(screenDiv) + Convert.ToInt16(screenDiv) / 2 - 30);
                         enemyXValues.Add(startX);
                         enemyYValues.Add(-50 + (rand.Next(-50, 51)));//randomises Y to a degree
-                        enemyTypeValues.Add("heavy");
+                        enemyTypeValues.Add("light");
+                        enemyHealths.Add(1);
                         enemyStartXes.Add(startX);
                     }
                     enemySpawnRate += 1;
-                    if (enemySpawnRate == 5) { enemySpawnRate = 0; } //resets spawn rate once next bracket is reached
+                    if (enemySpawnRate == 6) { enemySpawnRate = 0; } //resets spawn rate once next bracket is reached
                 }else if (tracker > 800 && tracker <= 1800)
                 {
                     double screenDiv = this.Width / enemySpawnRate;//used to evenly distribute enemies across screen
@@ -322,7 +438,24 @@ namespace Agalag
                         enemyXValues.Add(startX);
                         enemyYValues.Add(-50 + (rand.Next(-50, 51)));//randomises Y to a degree
                         enemyTypeValues.Add("dynamic");
+                        enemyHealths.Add(3);
                         enemyStartXes.Add(startX);//used to allow a sine wave pattern.
+                        if (enemySpawnRate == 6) { enemySpawnRate = 0; }
+                    }
+                    enemySpawnRate += 1;
+                }
+                else if (tracker > 1800 && tracker <= 2800)
+                {
+                    double screenDiv = this.Width / enemySpawnRate;//used to evenly distribute enemies across screen
+                    for (int i = 0; i < enemySpawnRate; i += 1)
+                    {
+                        int startX = (i * Convert.ToInt16(screenDiv) + Convert.ToInt16(screenDiv) / 2 - 30);
+                        enemyXValues.Add(startX);
+                        enemyYValues.Add(-50 + (rand.Next(-50, 51)));//randomises Y within 100 pixels
+                        enemyTypeValues.Add("heavy");
+                        enemyHealths.Add(5);
+                        enemyStartXes.Add(startX);
+                        if (enemySpawnRate == 6) { enemySpawnRate = 0; }
                     }
                     enemySpawnRate += 1;
                 }
@@ -353,53 +486,34 @@ namespace Agalag
                     }
                 }
             }
-
-            //collisions detection for bullets and enemies
-            for (int i = 0; i < bulletXValues.Count; i++)//nested for loops to check all bullets against all enemies
+            if (tracker % 75 == 0)
             {
-                for (int j = 0; j < enemyXValues.Count(); j++)
+                for (int i = 0; i < enemyXValues.Count(); i++)
                 {
-                    try {
-                        if (enemyXValues.IndexOf(enemyXValues[j]) != -1 && bulletXValues.IndexOf(bulletXValues[i]) != -1)
-                        {
-                            switch (enemyTypeValues[j])//determines hitbox based on enemy type
-                            {
+                    if (enemyTypeValues[i] == "heavy")
+                    {
+                        enemyHeavyBulletXValues.Add(enemyXValues[i] + 5);
+                        enemyHeavyBulletYValues.Add(enemyYValues[i] + 80);
 
-                                case "light":
-                                    if (Math.Sqrt(Math.Pow(bulletXValues[i] - enemyXValues[j], 2) + Math.Pow(bulletYValues[i] - enemyYValues[j], 2)) < 30)//uses distance formula to check for collision
-                                    {
-                                        removeBulletsAndEnemies(i, j);
-                                    }
-                                    break;
-                                case "dynamic":
-                                    if ((Math.Sqrt(Math.Pow(bulletXValues[i] - enemyXValues[j], 2) + Math.Pow(bulletYValues[i] - enemyYValues[j], 2)) < 60))//uses distance formula to check for collision
-                                    {
-                                        removeBulletsAndEnemies(i, j);
-                                    }
-                                   break;
-                            }
-                        }
+                        enemyHeavyBulletXValues.Add(enemyXValues[i] + 55);
+                        enemyHeavyBulletYValues.Add(enemyYValues[i] + 80);
                     }
-                    catch { }
                 }
             }
-       
-            
+                  
             tracker++;
             Refresh();          
         }
 
         //paint method
         private void Form1_Paint(object sender, PaintEventArgs e)
-        {
+        { 
             drawBrush.Color = Color.White;
-            
             for (int i = 0; i < 199; i++)
             {
                 float starY = Convert.ToInt16(starYValues[i]);
                 e.Graphics.FillEllipse(drawBrush, starXValues[i], starY, starSizeValues[i], starSizeValues[i]);
             }
-
 
             if (playerOk)
             {
@@ -422,6 +536,19 @@ namespace Agalag
             }
 
             drawBrush.Color = Color.Orange;
+
+            if (playerFiring)//draws shooting effect
+            {
+                if (fireMode == "single"|| fireMode == "heavy" || fireMode == "spread")
+                {
+                    e.Graphics.FillEllipse(drawBrush, shipX + 22, shipY-15, 6, 20);
+                }
+                if (fireMode == "double" || fireMode == "spread")
+                {
+                    e.Graphics.FillEllipse(drawBrush, shipX + 2, shipY-5, 6, 20);
+                    e.Graphics.FillEllipse(drawBrush, shipX + 42, shipY - 5, 6, 20);
+                }
+            }
 
             for (int i = 0; i < bulletXValues.Count(); i++)
             { switch (bulletTypeValues[i]) {//switch statement to determine which bullet shape to draw
@@ -499,25 +626,52 @@ namespace Agalag
             drawBrush.Color = Color.Red;
             for (int i = 0; i < enemyBulletXValues.Count(); i++)
             {
-                e.Graphics.FillRectangle(drawBrush, enemyBulletXValues[i], enemyBulletYValues[i], 3, 10);//draws player shots
+                e.Graphics.FillRectangle(drawBrush, enemyBulletXValues[i], enemyBulletYValues[i], 3, 10);//draws enemy light shots
             }
             for (int i = 0; i < enemyDynamicBulletXValues.Count(); i++)
             {
-                e.Graphics.FillRectangle(drawBrush, enemyDynamicBulletXValues[i], enemyDynamicBulletYValues[i], 3, 10);//draws player shots
+                e.Graphics.FillRectangle(drawBrush, enemyDynamicBulletXValues[i], enemyDynamicBulletYValues[i], 3, 10);//draws enemy dynamic shots
+            }
+            for (int i = 0; i < enemyHeavyBulletXValues.Count(); i++)
+            {
+                e.Graphics.FillEllipse(drawBrush, enemyHeavyBulletXValues[i], enemyHeavyBulletYValues[i], 10, 10);//draws enemy heavy shots
+            }
+
+            drawBrush.Color = Color.White;
+            //text labels for player stats
+            e.Graphics.DrawString("Lives", gameFont, drawBrush, 20, 20);
+            e.Graphics.DrawString("Health", gameFont, drawBrush, 20, 50);
+            e.Graphics.DrawString("Score:" + score, gameFont, drawBrush, 20, 80);
+            drawBrush.Color = Color.Red;
+
+            for (int i = 0; i < playerLives; i++)
+            {
+                e.Graphics.FillEllipse(drawBrush, 80 + i * 20, 20, 20, 20);//draws lives display
+            }
+            for (int i = 0; i < playerHealth; i++)
+            {
+                e.Graphics.FillRectangle(drawBrush, 85 + i * 15, 50, 10, 20);//draws health display
             }
         }
-        void removeBulletsAndEnemies(int i, int j)//this function removes enemies and bullets from their arrays when they die
+        void removeEnemies(int i)//this function removes enemies  from their arrays when they die
+        {           
+            //removes collided enemies
+            enemyXValues.Remove(enemyXValues[i]);
+            enemyYValues.Remove(enemyYValues[i]);
+            enemyStartXes.Remove(enemyStartXes[i]);
+            enemyHealths.Remove(enemyHealths[i]);
+            enemyTypeValues.Remove(enemyTypeValues[i]);
+        }
+        void removeBullets(int i)
         {
-            //removes collided bullets
             bulletXValues.Remove(bulletXValues[i]);
             bulletYValues.Remove(bulletYValues[i]);
             bulletTypeValues.Remove(bulletTypeValues[i]);
+        }
 
-            //removes collided enemies
-            enemyXValues.Remove(enemyXValues[j]);
-            enemyYValues.Remove(enemyYValues[j]);
-            enemyStartXes.Remove(enemyStartXes[j]);
-            enemyTypeValues.Remove(enemyTypeValues[j]);
+        double calculateDistance(int x1, int x2, int y1, int  y2)//method to calculate distance for se in collision detection
+        {
+            return ((Math.Sqrt(Math.Pow(x1 - x2, 2) + Math.Pow(y1 - y2, 2))));
         }
     }
 }
