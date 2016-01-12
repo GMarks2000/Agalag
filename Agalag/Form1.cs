@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Threading;
+using System.Diagnostics;
 
 namespace Agalag
 {
@@ -18,31 +19,34 @@ namespace Agalag
         Font powerupFont = new Font("Impact", 16);
         Font titleFont = new Font("Liberation Mono", 30, FontStyle.Bold);
 
-        string gameMode = "one player";
-        bool gamePaused = false;
+        Random rand = new Random();
+        Stopwatch invincibilityWatch = new Stopwatch();//will track how long the player has been invincible
+        Stopwatch speedWatch = new Stopwatch();//will track how long the player has been at double speed
 
         int shipX;//player x value
-        int shipY = 400;//player y value
-        bool playerOk = true;//tracks whether player is alive
-
+        int shipY = 400;//player y value        
         int playerHealth = 5;
         int playerLives = 3;
         int score = 0;
-
-        bool playerFiring = false; //used to determine whether to play firing animation
-
-        string fireMode = "double"; //will track the players mode of shooting
-
+        int playerSpeed = 6;
         int bulletModulator = 10;//when equal to 10,  bullet will be ready to fire.
-
         int timeSincePowerup = 0;
 
+        bool gamePaused = false;
+        bool playerFiring = false; //used to determine whether to play firing animation
+        bool playerDying = false; //tracks whether  player is exploding
+        bool gameOver = false; //tracks if game is ended
+        bool playerOk = true;//tracks whether player is alive
+        bool playerInvincible = false;
+        bool playerFast = false;
+
+        string fireMode = "single"; //will track the players mode of shooting
+        string gameMode = "one player";
+
+        double enemySpawnRate = 1; //controls the number of enemies to spawn at each interval    
+
         long tracker = 0;//tracks the  number of timer repetitions passed.
-
-        Random rand = new Random();
-
-        double enemySpawnRate = 1; //controls the number of enemies to spawn at each interval      
-
+                
         int[] starXValues = new int[200];
         double[] starYValues = new double[200];
         int[] starSizeValues = new int[200];
@@ -159,10 +163,12 @@ namespace Agalag
 
         //timer tick method
         private void timer1_Tick(object sender, EventArgs e)
-        {
-                       
-            //checks to see if any keys have been pressed and adjusts the X or Y value
-            //for the rectangle appropriately
+        {   
+            //adjusts player speed
+            if (playerFast) { playerSpeed = 12; }
+            else { playerSpeed = 6; }
+
+            //******************PLAYER SHOT SPAWNS*************************************************
             if (spaceDown == true && bulletModulator == 10 && playerOk)//fires shots only if bulletModulator has reached 10
             {
                 playerFiring = true;
@@ -209,25 +215,25 @@ namespace Agalag
 
             if (leftArrowDown == true && shipX > 5)
             {
-                shipX-= 6;
+                shipX-= playerSpeed;
             }
             if (rightArrowDown == true && shipX < this.Width - 70)
             {
-                shipX += 6;
+                shipX += playerSpeed;
             }
             if (downArrowDown == true && shipY <this.Height - 88)
             {
-               shipY+= 6;
+               shipY+= playerSpeed;
             }
-
             if (upArrowDown == true && shipY > 5)
             {
-                shipY-= 6;
+                shipY-= playerSpeed;
             }
                    
             if (bulletModulator < 10) { bulletModulator++; }//cases bullet modulator to incement if a shot is not ready. This will cause a shot to be fired every 100 ms
 
-            for  (int i = 0; i < bulletXValues.Count(); i++)
+            //******************BULLETS************************************************
+            for (int i = 0; i < bulletXValues.Count(); i++)
             {
                 //causes bullets to ascend
                 if (bulletYValues[i] < 0)
@@ -313,6 +319,7 @@ namespace Agalag
                 if (starYValues[i] > this.Height) { starYValues[i] = 0; }//causes stars to "snake" back up to top when they go offscreen.
             }
 
+            //******************ENEMIES*************************************************
             for (int i = 0; i < enemyXValues.Count(); i++)
             {
                 if (enemyYValues[i] > this.Height)//removes offscreen enemies
@@ -346,6 +353,13 @@ namespace Agalag
                             explosionYMod = 40;
                             break;
                     }
+                    //kills player and enemy on collision
+                    if (calculateDistance(enemyXValues[i],shipX, enemyYValues[i], shipY) < 40)
+                    {
+                        if (playerInvincible == false) { playerHealth = 0; }
+
+                        enemyHealths[i] = 0;
+                    }
                     if (enemyHealths[i] <= 0)
                     {
                         //adds explosion to defeated enemies
@@ -359,9 +373,10 @@ namespace Agalag
                 }           
             }
 
+            //******************REGULAR ENEMY BULLETS*************************************************
             for (int i = 0; i < enemyBulletXValues.Count(); i++)
             {
-                if (enemyBulletYValues[i] < 0)
+                if (enemyBulletYValues[i] < 0 )
                 {
                     enemyBulletXValues.Remove(enemyBulletXValues[i]);//removes offscreen enemy bullets
                     enemyBulletYValues.Remove(enemyBulletYValues[i]);
@@ -369,7 +384,7 @@ namespace Agalag
                 else
                 {
                     enemyBulletYValues[i] += 7;//causes enemy bullets to descend
-                    if (Math.Abs(enemyBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyBulletYValues[i] - (shipY + 20)) < 20)
+                    if (Math.Abs(enemyBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyBulletYValues[i] - (shipY + 20)) < 20 && playerInvincible == false)
                     {
                         playerHealth -= 1;
                         enemyBulletXValues.Remove(enemyBulletXValues[i]);//removes bullets that hit the player.
@@ -377,6 +392,8 @@ namespace Agalag
                     }                 
                 }             
             }
+
+            //******************DYNAMIC ENEMY BULLETS*************************************************
             for (int i = 0; i < enemyDynamicBulletXValues.Count(); i++)//for loop for dynamic bullets. Seperate due to their differet behavior
             {
                 if (enemyDynamicBulletYValues[i] < 0)
@@ -395,7 +412,7 @@ namespace Agalag
                 }
                 try
                 {
-                    if (Math.Abs(enemyDynamicBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyDynamicBulletYValues[i] - (shipY + 20)) < 20)
+                    if (Math.Abs(enemyDynamicBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyDynamicBulletYValues[i] - (shipY + 20)) < 20 && playerInvincible == false)
                     {
                         playerHealth -= 2;
                         enemyDynamicBulletXValues.Remove(enemyDynamicBulletXValues[i]);//removes offscreen enemy bullets
@@ -407,6 +424,7 @@ namespace Agalag
                 catch { }
             }
 
+            //******************HEAVY ENEMY BULLETS*************************************************
             for (int i = 0; i < enemyHeavyBulletXValues.Count(); i++)
             {   
                 //moves enemy heavy shots down
@@ -416,7 +434,7 @@ namespace Agalag
                 else if (enemyHeavyBulletXValues[i] < shipX) { enemyHeavyBulletXValues[i]++; }
                 try
                 {
-                    if (Math.Abs(enemyHeavyBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyHeavyBulletYValues[i] - (shipY + 20)) < 20)
+                    if (Math.Abs(enemyHeavyBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyHeavyBulletYValues[i] - (shipY + 20)) < 20 && playerInvincible == false)
                     {
                         playerHealth -= 3;
                         enemyHeavyBulletXValues.Remove(enemyHeavyBulletXValues[i]);
@@ -426,32 +444,56 @@ namespace Agalag
                 catch { }
             }
 
-            if (playerHealth <= 0)//player respawn
-            {
-                gameTimer.Enabled = false;
-
-                for (int i = 0; i < 5; i++)//flashes player onscreen 5 times before restarting
-                {   if (playerLives != 0)
-                    {
-                        Refresh();
-                        Thread.Sleep(250);
-                        playerOk = false;
-                        Refresh();
-                        Thread.Sleep(250);
-                        playerOk = true;
-                    }
-                    
+            if (playerHealth <= 0 && gameOver == false)//player respawn
+            {    if (playerDying == false)
+                {
+                    explosionXValues.Add(shipX + 30);
+                    explosionYValues.Add(shipY + 20);
+                    explosionSizeValues.Add(0);
+                    playerOk = false;
+                    playerDying = true;
                 }
-                gameTimer.Enabled = true;
-                playerLives--;
-                playerHealth = 5;
+
+                //waits for explosion to finish before stopping to respawn player
+                if (explosionXValues.Count() == 0)
+                {
+
+                    gameTimer.Enabled = false;
+
+                    for (int i = 0; i < 5; i++)//flashes player onscreen 5 times before restarting
+                    {
+                        if (playerLives != 1)
+                        {
+                            Refresh();
+                            Thread.Sleep(250);
+                            playerOk = false;
+                            Refresh();
+                            Thread.Sleep(250);
+                            playerOk = true;
+                            playerDying = false;
+                        }
+
+                    }
+                    gameTimer.Enabled = true;
+                    fireMode = "single";
+                    playerInvincible = false;
+                    playerFast = false;
+                    playerLives--;
+                    playerHealth = 5;
+                }
             }
 
             if (playerLives == 0)//ends game on player death
             { playerOk = false;
                 Refresh();
                 gameTimer.Enabled = false;
+
+                gameOver = true;
             }
+
+            //determines player speed based on whether the fast powerup has not worn off
+            if (playerFast) { playerSpeed = 12; }
+            else { playerSpeed = 6; }
 
             int powerupRand = rand.Next(0, 501);//1 in 500 chance of a powerup spawn
             if (powerupRand == 500 && timeSincePowerup > 300)
@@ -461,6 +503,8 @@ namespace Agalag
                 powerupYValues.Add(0);
                 timeSincePowerup = 0;
             } else { timeSincePowerup++; }
+
+            //******************POWERUPS*************************************************
             for (int i = 0; i < powerupXValues.Count(); i++)
             {
                 if (powerupYValues[i] > this.Height)//removes offscreen powerups
@@ -473,7 +517,7 @@ namespace Agalag
                     powerupYValues[i]++;//moves powerup downn
                     if (calculateDistance(shipX, powerupXValues[i], shipY, powerupYValues[i]) < 50)
                     {
-                        int randomEffect = rand.Next(1, 4);
+                        int randomEffect = rand.Next(1, 6);
                         switch (randomEffect)
                         {
                             case 1:
@@ -484,14 +528,36 @@ namespace Agalag
                                 break;
                             case 3:
                                 fireMode = "heavy";
-                                break;                      
+                                break;
+                            case 4:
+                                invincibilityWatch.Start();
+                                playerInvincible = true;
+                                break;
+                            case 5:
+                                speedWatch.Start();
+                                playerFast = true;
+                                break;
                         }
                         powerupXValues.Remove(powerupXValues[i]);
                         powerupYValues.Remove(powerupYValues[i]);
                     }
                 }
             }
-
+            //makes player vulnerable if they have been invincible for more than 15 seconds
+            if (playerInvincible && invincibilityWatch.Elapsed.TotalHours >= 0.00416)//approx 15 secs invincibility
+            {
+                invincibilityWatch.Stop();
+                invincibilityWatch.Reset();
+                playerInvincible = false;
+            }
+            //makes player normal if they have been fast for more than 15 seconds
+            if (playerFast && invincibilityWatch.Elapsed.TotalHours >= 0.00632)//approx 22 secs speed
+            {
+                speedWatch.Stop();
+                speedWatch.Reset();
+                playerFast = false;
+            }
+            //******************EXPLOSIONS*************************************************
             for (int i = 0; i < explosionXValues.Count(); i++)
             {   //removes explosions that reach a certain size
                 if (explosionSizeValues[i] >= 100)
@@ -513,6 +579,7 @@ namespace Agalag
                 }
             }
 
+            //******************ENEMY SPAWNING*************************************************
             if (tracker % 200 == 0) {
                 //enemies spawn every 200 frames
                 if (tracker <= 800)
@@ -529,7 +596,7 @@ namespace Agalag
                     }
                     enemySpawnRate += 1;
                     if (enemySpawnRate == 6) { enemySpawnRate = 0; } //resets spawn rate once next bracket is reached
-                }else if (tracker > 800 && tracker <= 1600)
+                }else if (tracker > 800 && tracker <= 1800)
                 {
                     double screenDiv = this.Width / enemySpawnRate;//used to evenly distribute enemies across screen
                     for (int i = 0; i < enemySpawnRate; i += 1)
@@ -555,11 +622,118 @@ namespace Agalag
                         enemyTypeValues.Add("heavy");
                         enemyHealths.Add(5);
                         enemyStartXes.Add(startX);
-                        if (enemySpawnRate == 6) { enemySpawnRate = 0; }
+                        if (enemySpawnRate == 5) { enemySpawnRate = 0; }
+                    }
+                    enemySpawnRate += 1;
+                }
+                else if (tracker > 3000 && tracker <= 5000)
+                {
+                    double screenDiv = this.Width / enemySpawnRate;//used to evenly distribute enemies across screen
+                    for (int i = 0; i < enemySpawnRate; i += 1)
+                    {
+                        int startX = (i * Convert.ToInt16(screenDiv) + Convert.ToInt16(screenDiv) / 2 - 30);
+                        enemyXValues.Add(startX);
+                        enemyYValues.Add(-50 + (rand.Next(-50, 51)));//randomises Y within 100 pixels
+
+                        int typeRand = rand.Next(0, 2);//randomises enemy type
+
+                        switch (typeRand)
+                        {
+                            case 0:
+                                enemyTypeValues.Add("light");
+                                break;
+                            case 1:
+                                enemyTypeValues.Add("dynamic");
+                                break;
+                        }
+                        enemyHealths.Add(5);
+                        enemyStartXes.Add(startX);
+                        if (enemySpawnRate == 10) { enemySpawnRate = 0; }
+                    }
+                    enemySpawnRate += 1;
+                }
+                else if (tracker >  5000 && tracker <= 7000)
+                {
+                    double screenDiv = this.Width / enemySpawnRate;//used to evenly distribute enemies across screen
+                    for (int i = 0; i < enemySpawnRate; i += 1)
+                    {
+                        int startX = (i * Convert.ToInt16(screenDiv) + Convert.ToInt16(screenDiv) / 2 - 30);
+                        enemyXValues.Add(startX);
+                        enemyYValues.Add(-50 + (rand.Next(-50, 51)));//randomises Y within 100 pixels
+
+                        int typeRand = rand.Next(0, 2);//randomises enemy type
+
+                        switch (typeRand)
+                        {
+                            case 0:
+                                enemyTypeValues.Add("light");
+                                break;
+                            case 1:
+                                enemyTypeValues.Add("heavy");
+                                break;
+                        }
+                        enemyHealths.Add(5);
+                        enemyStartXes.Add(startX);
+                        if (enemySpawnRate == 10) { enemySpawnRate = 0; }
+                    }
+                    enemySpawnRate += 1;
+                }
+                else if (tracker > 7000 && tracker <= 9000)
+                {
+                    double screenDiv = this.Width / enemySpawnRate;//used to evenly distribute enemies across screen
+                    for (int i = 0; i < enemySpawnRate; i += 1)
+                    {
+                        int startX = (i * Convert.ToInt16(screenDiv) + Convert.ToInt16(screenDiv) / 2 - 30);
+                        enemyXValues.Add(startX);
+                        enemyYValues.Add(-50 + (rand.Next(-50, 51)));//randomises Y within 100 pixels
+
+                        int typeRand = rand.Next(0, 2);//randomises enemy type
+
+                        switch (typeRand)
+                        {
+                            case 0:
+                                enemyTypeValues.Add("dynamic");
+                                break;
+                            case 1:
+                                enemyTypeValues.Add("heavy");
+                                break;
+                        }
+                        enemyHealths.Add(5);
+                        enemyStartXes.Add(startX);
+                        if (enemySpawnRate == 10) { enemySpawnRate = 0; }
+                    }
+                    enemySpawnRate += 1;
+                }
+                else if (tracker > 9000)
+                {
+                    double screenDiv = this.Width / enemySpawnRate;//used to evenly distribute enemies across screen
+                    for (int i = 0; i < enemySpawnRate; i += 1)
+                    {
+                        int startX = (i * Convert.ToInt16(screenDiv) + Convert.ToInt16(screenDiv) / 2 - 30);
+                        enemyXValues.Add(startX);
+                        enemyYValues.Add(-50 + (rand.Next(-50, 51)));//randomises Y within 100 pixels
+
+                        int typeRand = rand.Next(0, 3);//randomises enemy type
+
+                        switch (typeRand)
+                        {
+                            case 0:
+                                enemyTypeValues.Add("dynamic");
+                                break;
+                            case 1:
+                                enemyTypeValues.Add("heavy");
+                                break;
+                            case 2:
+                                enemyTypeValues.Add("light");
+                                break;
+                        }
+                        enemyHealths.Add(5);
+                        enemyStartXes.Add(startX);
                     }
                     enemySpawnRate += 1;
                 }
             }
+            //******************ENEMY FIRE PATTERNS*************************************************
             if (tracker % 50 == 0)//light enemies fire every 50 frames
             {
                 for (int i = 0; i < enemyXValues.Count(); i++)
@@ -609,11 +783,7 @@ namespace Agalag
         { 
             drawBrush.Color = Color.White;
 
-            if (gamePaused)
-            {
-                e.Graphics.DrawString("Game Paused", titleFont, drawBrush, 200, this.Height / 2 - 100);
-                e.Graphics.DrawString("Press P to Unpause or Esc to Exit", gameFont, drawBrush, 180, this.Height / 2);
-            }
+            
 
             for (int i = 0; i < 199; i++)
             {
@@ -634,6 +804,11 @@ namespace Agalag
             if (playerOk)
             {
                 drawBrush.Color = Color.White;
+
+                if (playerInvincible)
+                {
+                    drawBrush.Color = Color.Gold;
+                }
 
                 Point[] triangle1Points = { new Point(shipX, shipY + 35), new Point(shipX + 5, shipY + 10), new Point(shipX + 10, shipY + 35) };//array for the points of triangle 1
                 Point[] triangle2Points = { new Point(shipX + 20, shipY + 15), new Point(shipX + 25, shipY), new Point(shipX + 30, shipY + 15) };//array for the points of triangle 2
@@ -802,6 +977,24 @@ namespace Agalag
                 case "heavy":
                     e.Graphics.FillEllipse(drawBrush, 25, 185, 20, 20);                  
                     break;
+            }
+
+            //draws pause text
+            drawBrush.Color = Color.White;
+
+            if (gamePaused)
+            {
+                e.Graphics.DrawString("Game Paused", titleFont, drawBrush, this.Width / 2 - 150, this.Height / 2 - 100);
+                e.Graphics.DrawString("Press P to Unpause or Esc to Exit", gameFont, drawBrush, this.Width / 2 - 165, this.Height / 2);
+            }
+            drawBrush.Color = Color.Red;
+            //draws game oover text
+            if (gameOver)
+            {
+                e.Graphics.DrawString("Game Over", titleFont, drawBrush, this.Width / 2 - 150, this.Height / 2 - 100);
+                drawBrush.Color = Color.White;
+                e.Graphics.DrawString("Score: " + score, titleFont, drawBrush, this.Width / 2 - 150, this.Height / 2 - 50);
+                e.Graphics.DrawString("Please enter your name", gameFont, drawBrush, this.Width / 2 - 145, this.Height / 2);
             }
         }
         void removeEnemies(int i)//this function removes enemies  from their arrays when they die
