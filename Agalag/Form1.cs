@@ -23,14 +23,21 @@ namespace Agalag
         Stopwatch invincibilityWatch = new Stopwatch();//will track how long the player has been invincible
         Stopwatch speedWatch = new Stopwatch();//will track how long the player has been at double speed
 
-        int shipX;//player x value
-        int shipY = 400;//player y value        
+        int playerX;//player x value
+        int playerY = 400;//player y value        
         int playerHealth = 5;
         int playerLives = 1;
         int score = 0;
         int playerSpeed = 6;
         int bulletModulator = 10;//when equal to 10,  bullet will be ready to fire.
         int timeSincePowerup = 0;
+
+        //p2 specific vars
+        int player2X;//player x value
+        int player2Y = 400;//player y value        
+        int player2Health = 5;
+        int player2Lives = 1;
+        int p2BulletModulator = 10;
 
         bool gamePaused = false;
         bool playerFiring = false; //used to determine whether to play firing animation
@@ -40,9 +47,14 @@ namespace Agalag
         bool playerInvincible = false;
         bool playerFast = false;
 
+        //p2 specific vars
+        bool player2Ok = true;//tracks whether player is alive
+        bool player2Firing = false;
+
         string fireMode = "single"; //will track the players mode of shooting
         string gameState = "title";
-        
+
+        string p2FireMode = "single"; //will track the players mode of shooting
 
         double enemySpawnRate = 1; //controls the number of enemies to spawn at each interval    
 
@@ -53,12 +65,16 @@ namespace Agalag
         int[] starSizeValues = new int[200];
 
         //arrays for highscore names and numbers
-        int[] highScores = new int[10] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-        string[] highScoreNames = new string[10] { "AAA", "AAA", "AAA", "AAA", "AAA", "AAA", "AAA", "AAA", "AAA", "AAA" };
+        List<int> highScores= new List<int>(new int[] {0,0,0,0,0,0,0,0,0,0 });//list for high scores
+        List<string> highScoreNames = new List<string>(new string[] {"AAA", "AAA", "AAA", "AAA", "AAA", "AAA", "AAA", "AAA", "AAA", "AAA", });//list for hs names
 
         List<int> bulletXValues = new List<int>(new int[] {});//list for bullet Xes
         List<int> bulletYValues = new List<int>(new int[] {});//list for bullet Ys
         List<string> bulletTypeValues = new List<string>(new string[] { });//list for bullet types
+
+        List<int> p2BulletXValues = new List<int>(new int[] { });//list for bullet Xes
+        List<int> p2BulletYValues = new List<int>(new int[] { });//list for bullet Ys
+        List<string> p2BulletTypeValues = new List<string>(new string[] { });//list for bullet types
 
         List<int> enemyXValues = new List<int>(new int[] { });//list for enemy Xes
         List<int> enemyYValues = new List<int>(new int[] { });//list for enemy Ys
@@ -86,13 +102,13 @@ namespace Agalag
         List<int> explosionOpacityValues = new List<int>(new int[] { });//list for explosion opacities
 
 
-        Boolean leftArrowDown, downArrowDown, rightArrowDown, upArrowDown, spaceDown;//track whether keys are held down
+        Boolean leftArrowDown, downArrowDown, rightArrowDown, upArrowDown, spaceDown, jDown, kDown, lDown, iDown, shiftDown;//track whether keys are held down
 
         public Form1()
         {
             InitializeComponent();
            
-            shipX = this.Width / 2;//initializes player to midcsreen
+            playerX = this.Width / 2;//initializes player to midcsreen
 
             entryBox.Visible = false;
             enterNameButton.Visible = false;
@@ -149,16 +165,82 @@ namespace Agalag
                             clearVariables();
                             Refresh();
                             changeTitleVisibility(true);
-                        }                       
+                        }
                         break;
-                        //case for pressing enter after game over
-                   
+                    //case for pressing enter after game over
+
+                    default:
+                        break;
+                }
+            }
+            //TWO PLATER CASE
+            else if (gameState == "two player")
+            {
+                switch (e.KeyCode)
+                {
+                    case Keys.W:
+                        upArrowDown = true;
+                        break;
+                    case Keys.A:
+                        leftArrowDown = true;
+                        break;
+                    case Keys.S:
+                        downArrowDown = true;
+                        break;
+                    case Keys.D:
+                        rightArrowDown = true;
+                        break;
+                    case Keys.Space:
+                        spaceDown = true;
+                        break;
+                    case Keys.J:
+                        jDown = true;
+                        break;
+                    case Keys.K:
+                        kDown = true;
+                        break;
+                    case Keys.L:
+                        lDown = true;
+                        break;
+                    case Keys.I:
+                        iDown = true;
+                        break;
+                    case Keys.RShiftKey:
+                        shiftDown = true;
+                        break;
+                    case Keys.P:
+                        if (gamePaused == false)
+                        {   //pauses game
+                            gamePaused = true;
+                            gameTimer.Enabled = false;
+                            Refresh();
+                        }
+                        else
+                        {   //unpauses game
+                            gamePaused = false;
+                            gameTimer.Enabled = true;
+                        }
+                        break;
+                    //returns to title from pause screen
+                    case Keys.Escape:
+                        if (gamePaused)
+                        {
+                            gameState = "title";
+                            gameTimer.Enabled = false;
+                            clearVariables();
+                            Refresh();
+                            changeTitleVisibility(true);
+                        }
+                        break;
+                    //case for pressing enter after game over
+
                     default:
                         break;
                 }
             }
             else if (gameState == "high scores")
-            { switch (e.KeyCode)
+            {
+                switch (e.KeyCode)
                 {
                     case Keys.Escape:
                         //returns to title form high scores
@@ -198,6 +280,44 @@ namespace Agalag
                     default:
                         break;
                 }
+                //TWO PLATER CASE
+            }else if (gameState == "two player")
+            {
+                switch (e.KeyCode)
+                {
+                    case Keys.A:
+                        leftArrowDown = false;
+                        break;
+                    case Keys.S:
+                        downArrowDown = false;
+                        break;
+                    case Keys.D:
+                        rightArrowDown = false;
+                        break;
+                    case Keys.W:
+                        upArrowDown = false;
+                        break;
+                    case Keys.Space:
+                        spaceDown = false;
+                        break;
+                    case Keys.J:
+                        jDown = false;
+                        break;
+                    case Keys.K:
+                        downArrowDown = false;
+                        break;
+                    case Keys.L:
+                        lDown = false;
+                        break;
+                    case Keys.I:
+                        iDown = false;
+                        break;
+                    case Keys.RShiftKey:
+                        shiftDown = false;
+                        break;
+                    default:
+                        break;
+                }
             }
         }
 
@@ -219,35 +339,35 @@ namespace Agalag
                     switch (fireMode)//determines which type of bullet to add based on current firing mode. This is changed via randomly appearing powerups.
                     {
                         case "single": //fires a single shot. Start case.
-                            bulletXValues.Add(shipX + 24);
-                            bulletYValues.Add(shipY);
+                            bulletXValues.Add(playerX + 24);
+                            bulletYValues.Add(playerY);
                             bulletTypeValues.Add("light");
                             bulletModulator = 0;
                             break;
                         case "double": //fires two parallel shots. Shots same as in single
-                            bulletXValues.Add(shipX + 4);
-                            bulletYValues.Add(shipY);
+                            bulletXValues.Add(playerX + 4);
+                            bulletYValues.Add(playerY);
                             bulletTypeValues.Add("light");
-                            bulletXValues.Add(shipX + 44);
-                            bulletYValues.Add(shipY);
+                            bulletXValues.Add(playerX + 44);
+                            bulletYValues.Add(playerY);
                             bulletTypeValues.Add("light");
                             bulletModulator = 0;
                             break;
                         case "spread"://fires three shots that spread out
-                            bulletXValues.Add(shipX + 4);
-                            bulletYValues.Add(shipY);
+                            bulletXValues.Add(playerX + 4);
+                            bulletYValues.Add(playerY);
                             bulletTypeValues.Add("spread left");
-                            bulletXValues.Add(shipX + 24);
-                            bulletYValues.Add(shipY);
+                            bulletXValues.Add(playerX + 24);
+                            bulletYValues.Add(playerY);
                             bulletTypeValues.Add("spread center");
-                            bulletXValues.Add(shipX + 44);
-                            bulletYValues.Add(shipY);
+                            bulletXValues.Add(playerX + 44);
+                            bulletYValues.Add(playerY);
                             bulletTypeValues.Add("spread right");
                             bulletModulator = 0;
                             break;
                         case "heavy": //fires a single heavy shot.
-                            bulletXValues.Add(shipX + 20);
-                            bulletYValues.Add(shipY - 15);
+                            bulletXValues.Add(playerX + 20);
+                            bulletYValues.Add(playerY - 15);
                             bulletTypeValues.Add("heavy");
                             bulletModulator = 0;
                             break;
@@ -257,22 +377,7 @@ namespace Agalag
                 }
                 else if (bulletModulator > 2) { playerFiring = false; }
 
-                if (leftArrowDown == true && shipX > 5)
-                {
-                    shipX -= playerSpeed;
-                }
-                if (rightArrowDown == true && shipX < this.Width - 70)
-                {
-                    shipX += playerSpeed;
-                }
-                if (downArrowDown == true && shipY < this.Height - 88)
-                {
-                    shipY += playerSpeed;
-                }
-                if (upArrowDown == true && shipY > 5)
-                {
-                    shipY -= playerSpeed;
-                }
+                moveP1();
 
                 if (bulletModulator < 10) { bulletModulator++; }//cases bullet modulator to incement if a shot is not ready. This will cause a shot to be fired every 100 ms
 
@@ -400,7 +505,7 @@ namespace Agalag
                                 break;
                         }
                         //kills player and enemy on collision
-                        if (calculateDistance(enemyXValues[i], shipX, enemyYValues[i], shipY) < 40)
+                        if (calculateDistance(enemyXValues[i], playerX, enemyYValues[i], playerY) < 40)
                         {
                             if (playerInvincible == false) { playerHealth = 0; }
 
@@ -430,7 +535,7 @@ namespace Agalag
                     else
                     {
                         enemyBulletYValues[i] += 7;//causes enemy bullets to descend
-                        if (Math.Abs(enemyBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyBulletYValues[i] - (shipY + 20)) < 20 && playerInvincible == false)
+                        if (Math.Abs(enemyBulletXValues[i] - (playerX + 25)) < 25 && Math.Abs(enemyBulletYValues[i] - (playerY + 20)) < 20 && playerInvincible == false)
                         {
                             playerHealth -= 1;
                             removeEnemyBullets(i);
@@ -454,7 +559,7 @@ namespace Agalag
                     }
                     try
                     {
-                        if (Math.Abs(enemyDynamicBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyDynamicBulletYValues[i] - (shipY + 20)) < 20 && playerInvincible == false)
+                        if (Math.Abs(enemyDynamicBulletXValues[i] - (playerX + 25)) < 25 && Math.Abs(enemyDynamicBulletYValues[i] - (playerY + 20)) < 20 && playerInvincible == false)
                         {
                             playerHealth -= 2;
                             removeDynamicBullets(i);
@@ -475,11 +580,11 @@ namespace Agalag
                         //moves enemy heavy shots down
                         enemyHeavyBulletYValues[i] += 4;
                         //causes heavy shots to "home" towards player
-                        if (enemyHeavyBulletXValues[i] > shipX) { enemyHeavyBulletXValues[i]--; }
-                        else if (enemyHeavyBulletXValues[i] < shipX) { enemyHeavyBulletXValues[i]++; }
+                        if (enemyHeavyBulletXValues[i] > playerX) { enemyHeavyBulletXValues[i]--; }
+                        else if (enemyHeavyBulletXValues[i] < playerX) { enemyHeavyBulletXValues[i]++; }
                         try
                         {
-                            if (Math.Abs(enemyHeavyBulletXValues[i] - (shipX + 25)) < 25 && Math.Abs(enemyHeavyBulletYValues[i] - (shipY + 20)) < 20 && playerInvincible == false)
+                            if (Math.Abs(enemyHeavyBulletXValues[i] - (playerX + 25)) < 25 && Math.Abs(enemyHeavyBulletYValues[i] - (playerY + 20)) < 20 && playerInvincible == false)
                             {
                                 playerHealth -= 3;
                                 removeHeavyBullets(i);
@@ -493,8 +598,8 @@ namespace Agalag
                 {
                     if (playerDying == false)
                     {
-                        explosionXValues.Add(shipX + 30);
-                        explosionYValues.Add(shipY + 20);
+                        explosionXValues.Add(playerX + 30);
+                        explosionYValues.Add(playerY + 20);
                         explosionSizeValues.Add(0);
                         explosionOpacityValues.Add(0);
                         playerOk = false;
@@ -565,7 +670,7 @@ namespace Agalag
                     else
                     {
                         powerupYValues[i]++;//moves powerup downn
-                        if (calculateDistance(shipX, powerupXValues[i], shipY, powerupYValues[i]) < 50)
+                        if (calculateDistance(playerX, powerupXValues[i], playerY, powerupYValues[i]) < 50)
                         {
                             int randomEffect = rand.Next(1, 6);
                             switch (randomEffect)
@@ -813,8 +918,8 @@ namespace Agalag
                             enemyDynamicBulletXValues.Add(enemyXValues[i] + 15);
                             enemyDynamicBulletYValues.Add(enemyYValues[i] + 55);
                             //sends shot towards the player
-                            enemyDynamicBulletXIncreases.Add((shipX - enemyXValues[i]) / 50);
-                            enemyDynamicBulletYIncreases.Add((shipY - enemyYValues[i]) / 50);
+                            enemyDynamicBulletXIncreases.Add((playerX - enemyXValues[i]) / 50);
+                            enemyDynamicBulletYIncreases.Add((playerY - enemyYValues[i]) / 50);
                         }
                     }
                 }
@@ -835,6 +940,135 @@ namespace Agalag
 
                 tracker++;
                 Refresh();
+            }else if (gameState == "two player")
+                //**************P1 MOVEMENT*******************
+            {
+                moveP1();
+                //*********************P2 MOVEMENT************************
+                moveP2();
+
+                //******************PLAYER SHOT SPAWNS*************************************************
+                if (spaceDown == true && bulletModulator == 10 && playerOk)//fires shots only if bulletModulator has reached 10
+                {
+                    playerFiring = true;
+                    switch (fireMode)//determines which type of bullet to add based on current firing mode. This is changed via randomly appearing powerups.
+                    {
+                        case "single": //fires a single shot. Start case.
+                            bulletXValues.Add(playerX + 24);
+                            bulletYValues.Add(playerY);
+                            bulletTypeValues.Add("light");
+                            bulletModulator = 0;
+                            break;
+                        case "double": //fires two parallel shots. Shots same as in single
+                            bulletXValues.Add(playerX + 4);
+                            bulletYValues.Add(playerY);
+                            bulletTypeValues.Add("light");
+                            bulletXValues.Add(playerX + 44);
+                            bulletYValues.Add(playerY);
+                            bulletTypeValues.Add("light");
+                            bulletModulator = 0;
+                            break;
+                        case "spread"://fires three shots that spread out
+                            bulletXValues.Add(playerX + 4);
+                            bulletYValues.Add(playerY);
+                            bulletTypeValues.Add("spread left");
+                            bulletXValues.Add(playerX + 24);
+                            bulletYValues.Add(playerY);
+                            bulletTypeValues.Add("spread center");
+                            bulletXValues.Add(playerX + 44);
+                            bulletYValues.Add(playerY);
+                            bulletTypeValues.Add("spread right");
+                            bulletModulator = 0;
+                            break;
+                        case "heavy": //fires a single heavy shot.
+                            bulletXValues.Add(playerX + 20);
+                            bulletYValues.Add(playerY - 15);
+                            bulletTypeValues.Add("heavy");
+                            bulletModulator = 0;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                else if (p2BulletModulator > 2)
+                { player2Firing = false; }
+
+                if (shiftDown == true && bulletModulator == 10 && player2Ok)//fires shots only if bulletModulator has reached 10
+                {
+                    player2Firing = true;
+                    switch (fireMode)//determines which type of bullet to add based on current firing mode. This is changed via randomly appearing powerups.
+                    {
+                        case "single": //fires a single shot. Start case.
+                            p2BulletXValues.Add(player2X + 24);
+                            p2BulletYValues.Add(player2Y);
+                            p2BulletTypeValues.Add("light");
+                            p2BulletModulator = 0;
+                            break;
+                        case "double": //fires two parallel shots. Shots same as in single
+                            p2BulletXValues.Add(player2X + 4);
+                            p2BulletYValues.Add(player2Y);
+                            p2BulletTypeValues.Add("light");
+                            p2BulletXValues.Add(player2X + 44);
+                            bulletYValues.Add(player2Y);
+                            p2BulletTypeValues.Add("light");
+                            p2BulletModulator = 0;
+                            break;
+                        case "spread"://fires three shots that spread out
+                            p2BulletXValues.Add(player2X + 4);
+                            p2BulletYValues.Add(player2Y);
+                            p2BulletTypeValues.Add("spread left");
+                            p2BulletXValues.Add(player2X + 24);
+                            p2BulletYValues.Add(player2Y);
+                            p2BulletTypeValues.Add("spread center");
+                            p2BulletXValues.Add(player2X + 44);
+                            p2BulletYValues.Add(player2Y);
+                            p2BulletTypeValues.Add("spread right");
+                            p2BulletModulator = 0;
+                            break;
+                        case "heavy": //fires a single heavy shot.
+                            p2BulletXValues.Add(player2X + 20);
+                            p2BulletYValues.Add(player2Y - 15);
+                            p2BulletTypeValues.Add("heavy");
+                            p2BulletModulator = 0;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                else if (p2BulletModulator > 2) { player2Firing = false; }
+
+                //*************PLAYER 1 BULLETS******************
+                for (int i = 0; i < bulletXValues.Count();)
+                {
+                    if (bulletYValues[i] < 0)//removes offscreen shots
+                    {
+                        removeBullets(i);
+                    }
+                    else
+                    {
+                        switch (bulletTypeValues[i])
+                        {//switch to determine how player bullets will move
+                            case "light":
+                                bulletYValues[i] -= 10;
+                                break;
+                            case "heavy":
+                                bulletYValues[i] -= 5;
+                                break;
+                            case "spread left":
+                                bulletYValues[i] -= 10;
+                                bulletXValues[i] -= 5;
+                                break;
+                            case "spread center":
+                                bulletYValues[i] -= 10;
+                                break;
+                            case "spread right":
+                                bulletYValues[i] -= 10;
+                                bulletXValues[i] += 5;
+                                break;
+                        }
+                    }
+                }
+
             }
             else if (gameState == "high scores") { Refresh(); }
         }
@@ -871,13 +1105,13 @@ namespace Agalag
                         drawBrush.Color = Color.Gold;
                     }
 
-                    Point[] triangle1Points = { new Point(shipX, shipY + 35), new Point(shipX + 5, shipY + 10), new Point(shipX + 10, shipY + 35) };//array for the points of triangle 1
-                    Point[] triangle2Points = { new Point(shipX + 20, shipY + 15), new Point(shipX + 25, shipY), new Point(shipX + 30, shipY + 15) };//array for the points of triangle 2
-                    Point[] triangle3Points = { new Point(shipX + 40, shipY + 35), new Point(shipX + 45, shipY + 10), new Point(shipX + 50, shipY + 35) };//array for the points of triangle 3
+                    Point[] triangle1Points = { new Point(playerX, playerY + 35), new Point(playerX + 5, playerY + 10), new Point(playerX + 10, playerY + 35) };//array for the points of triangle 1
+                    Point[] triangle2Points = { new Point(playerX + 20, playerY + 15), new Point(playerX + 25, playerY), new Point(playerX + 30, playerY + 15) };//array for the points of triangle 2
+                    Point[] triangle3Points = { new Point(playerX + 40, playerY + 35), new Point(playerX + 45, playerY + 10), new Point(playerX + 50, playerY + 35) };//array for the points of triangle 3
 
 
-                    e.Graphics.FillRectangle(drawBrush, shipX, shipY + 35, 50, 10);//draws ship base
-                    e.Graphics.FillRectangle(drawBrush, shipX + 20, shipY + 15, 10, 20);//draws ship spine
+                    e.Graphics.FillRectangle(drawBrush, playerX, playerY + 35, 50, 10);//draws ship base
+                    e.Graphics.FillRectangle(drawBrush, playerX + 20, playerY + 15, 10, 20);//draws ship spine
 
                     drawBrush.Color = Color.DarkRed;
 
@@ -885,8 +1119,8 @@ namespace Agalag
                     e.Graphics.FillPolygon(drawBrush, triangle2Points);//draws central triangle
                     e.Graphics.FillPolygon(drawBrush, triangle3Points);//draws right triangle
 
-                    e.Graphics.FillRectangle(drawBrush, shipX + 10, shipY + 38, 30, 4);//draws ship base detail
-                    e.Graphics.FillRectangle(drawBrush, shipX + 23, shipY + 20, 4, 20);//draws ship spine detail
+                    e.Graphics.FillRectangle(drawBrush, playerX + 10, playerY + 38, 30, 4);//draws ship base detail
+                    e.Graphics.FillRectangle(drawBrush, playerX + 23, playerY + 20, 4, 20);//draws ship spine detail
                 }
 
                 drawBrush.Color = Color.Orange;
@@ -895,12 +1129,12 @@ namespace Agalag
                 {
                     if (fireMode == "single" || fireMode == "heavy" || fireMode == "spread")
                     {
-                        e.Graphics.FillEllipse(drawBrush, shipX + 22, shipY - 15, 6, 20);
+                        e.Graphics.FillEllipse(drawBrush, playerX + 22, playerY - 15, 6, 20);
                     }
                     if (fireMode == "double" || fireMode == "spread")
                     {
-                        e.Graphics.FillEllipse(drawBrush, shipX + 2, shipY - 5, 6, 20);
-                        e.Graphics.FillEllipse(drawBrush, shipX + 42, shipY - 5, 6, 20);
+                        e.Graphics.FillEllipse(drawBrush, playerX + 2, playerY - 5, 6, 20);
+                        e.Graphics.FillEllipse(drawBrush, playerX + 42, playerY - 5, 6, 20);
                     }
                 }
 
@@ -1080,7 +1314,7 @@ namespace Agalag
                     else if (i == 2) { drawBrush.Color = Color.Brown; }
                     else { drawBrush.Color = Color.White; }
 
-                    e.Graphics.DrawString(i.ToString(), powerupFont, drawBrush, 350, 150 + i * 50);//draws place
+                    e.Graphics.DrawString((i+1).ToString(), powerupFont, drawBrush, 350, 150 + i * 50);//draws place
                     e.Graphics.DrawString(highScoreNames[i], powerupFont, drawBrush, 550,  150 + i * 50);//draws names
                     e.Graphics.DrawString(Convert.ToString(highScores[i]), powerupFont, drawBrush, 750, 150 + i * 50);//draws scores
                 }
@@ -1170,14 +1404,14 @@ namespace Agalag
                 //adjusts high scores
                 for (int i = 0; i < 10; i++)
                 {
-                    if (score > highScores[i] && score < highScores [i - 1])
+                    if (score > highScores[i])
                     {
-                        highScores[i] = score;
-                        highScoreNames[i] = name;
-                        
+                        highScores.Insert(i, score);
+                        highScoreNames.Insert(i, name);
+                        break;//break is necessary to prevent all values from being changed to current score
                     }
                 }
-
+             
                 gameState = "title";
                 gameTimer.Enabled = false;
                 clearVariables();
@@ -1218,11 +1452,52 @@ namespace Agalag
         }
 
 
+        void moveP1()
+        {
+            if (leftArrowDown == true && playerX > 5)
+            {
+                playerX -= playerSpeed;
+            }
+            if (rightArrowDown == true && playerX < this.Width - 70)
+            {
+                playerX += playerSpeed;
+            }
+            if (downArrowDown == true && playerY < this.Height - 88)
+            {
+                playerY += playerSpeed;
+            }
+            if (upArrowDown == true && playerY > 5)
+            {
+                playerY -= playerSpeed;
+            }
+        }
+
+        void moveP2()
+        {
+            if (jDown == true && player2X > 5)
+                {
+                playerX -= playerSpeed;
+            }
+                if (lDown == true && player2X < this.Width - 70)
+                {
+                player2X += playerSpeed;
+            }
+                if (kDown == true && player2Y < this.Height - 88)
+                {
+                playerY += playerSpeed;
+            }
+                if (iDown == true && player2Y > 5)
+                {
+                player2Y -= playerSpeed;
+            }
+        }
+
+
         //clears all game-relevant variables
         void clearVariables()
         {
-            shipX = this.Width / 2;//player x value
-            shipY = 400;//player y value        
+            playerX = this.Width / 2;//player x value
+            playerY = 400;//player y value        
             playerHealth = 5;
             playerLives = 3;
             score = 0;
